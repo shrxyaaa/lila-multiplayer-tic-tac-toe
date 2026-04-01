@@ -303,7 +303,10 @@ This repository includes:
 - frontend env examples for Vercel in [`.env.example`](./.env.example)
 - backend env examples for GCP in [`.env.gcp.example`](./.env.gcp.example)
 
-The repo still does not contain a live public URL by itself; you still need to deploy the frontend and VM in your own accounts.
+Live deployment for this submission:
+
+- Frontend: `https://lila-multiplayer-tic-tac-toe-six.vercel.app/auth`
+- Nakama endpoint: `https://nakama-136-115-5-124.nip.io`
 
 ### Provider choice for this project
 
@@ -313,10 +316,14 @@ The repo still does not contain a live public URL by itself; you still need to d
 
 ### Why a public hostname is required
 
-Because the frontend will be served over `https://` on Vercel, the browser should talk to Nakama over `https://` / `wss://` as well. That means the Nakama VM needs a real public hostname such as:
+Because the frontend is served over `https://` on Vercel, the browser should talk to Nakama over `https://` / `wss://` as well. That means the Nakama VM needs a real public hostname such as:
 
 - `nakama.your-domain.com`
 - or a free DNS hostname you control
+
+For this submission, the deployment uses:
+
+- `nakama-136-115-5-124.nip.io`
 
 The provided GCP stack uses Caddy so the public Nakama hostname can terminate TLS automatically.
 
@@ -328,7 +335,7 @@ The provided GCP stack uses Caddy so the public Nakama hostname can terminate TL
 4. Set these environment variables in the Vercel project:
 
 ```env
-REACT_APP_NAKAMA_HOST=nakama.your-domain.com
+REACT_APP_NAKAMA_HOST=nakama-136-115-5-124.nip.io
 REACT_APP_NAKAMA_PORT=443
 REACT_APP_NAKAMA_KEY=your-server-key
 REACT_APP_NAKAMA_HTTP_KEY=your-http-key
@@ -363,6 +370,10 @@ Create an `A` record for a hostname such as:
 - `nakama.your-domain.com`
 
 Point it to the VM static IP.
+
+For this submission, a `nip.io` hostname was used instead of a custom domain:
+
+- `nakama-136-115-5-124.nip.io`
 
 #### 4. Open firewall rules
 
@@ -428,6 +439,10 @@ After DNS has propagated and Caddy has issued TLS certificates, your public Naka
 
 That same hostname should be used by the Vercel frontend.
 
+For this deployed submission, the live endpoint is:
+
+- `https://nakama-136-115-5-124.nip.io`
+
 #### 10. Access the Nakama Console privately
 
 Use SSH tunneling instead of public exposure:
@@ -445,7 +460,7 @@ Additional GCP notes are in [`deploy/gcp/README.md`](./deploy/gcp/README.md).
 ### API/server configuration details for deployment
 
 - Frontend should use:
-  - `REACT_APP_NAKAMA_HOST=nakama.your-domain.com`
+  - `REACT_APP_NAKAMA_HOST=nakama-136-115-5-124.nip.io`
   - `REACT_APP_NAKAMA_PORT=443`
   - `REACT_APP_NAKAMA_USE_SSL=true`
 - Backend should use strong values for:
@@ -455,9 +470,9 @@ Additional GCP notes are in [`deploy/gcp/README.md`](./deploy/gcp/README.md).
 
 ## Known Status Against Assignment Deliverables
 
-- Source code repository: available locally in this repo
-- Deployed frontend URL: not yet done
-- Deployed Nakama endpoint: not yet done
+- Source code repository: [https://github.com/shrxyaaa/lila-multiplayer-tic-tac-toe](https://github.com/shrxyaaa/lila-multiplayer-tic-tac-toe)
+- Deployed frontend URL: [https://lila-multiplayer-tic-tac-toe-six.vercel.app/auth](https://lila-multiplayer-tic-tac-toe-six.vercel.app/auth)
+- Deployed Nakama endpoint: [https://nakama-136-115-5-124.nip.io](https://nakama-136-115-5-124.nip.io)
 - README with setup, architecture, deployment, server config, and multiplayer test instructions: included here
 
 ## Troubleshooting
