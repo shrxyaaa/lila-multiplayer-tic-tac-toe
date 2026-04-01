@@ -1,12 +1,12 @@
 {$NAKAMA_DOMAIN} {
   encode gzip
 
-  header {
-    Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    Access-Control-Allow-Headers *
-  }
-
   @preflight method OPTIONS
+  header @preflight Access-Control-Allow-Origin "{http.request.header.Origin}"
+  header @preflight Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  header @preflight Access-Control-Allow-Headers *
+  header @preflight Access-Control-Max-Age "86400"
+  header @preflight Vary "Origin"
   respond @preflight 204
 
   reverse_proxy nakama:7350
