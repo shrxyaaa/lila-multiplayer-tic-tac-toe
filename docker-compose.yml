@@ -1,0 +1,48 @@
+# Local Nakama + CockroachDB. Mounts ./server/modules as runtime Lua.
+# After `docker compose up`, open http://127.0.0.1:7351 for the Nakama console.
+
+services:
+  cockroachdb:
+    image: cockroachdb/cockroach:latest-v24.1
+    command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/
+    restart: unless-stopped
+    volumes:
+      - cockroach-data:/var/lib/cockroach
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  nakama:
+    image: registry.heroiclabs.com/heroiclabs/nakama:3.37.0
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - |
+        /nakama/nakama migrate up --database.address root@cockroachdb:26257 &&
+        exec /nakama/nakama \
+          --name nakama1 \
+          --database.address root@cockroachdb:26257 \
+          --logger.level INFO \
+          --matchmaker.interval_sec 1 \
+          --socket.server_key defaultkey \
+          --runtime.http_key defaultkey \
+          --session.token_expiry_sec 7200 \
+          --runtime.path /nakama/data/modules
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+    volumes:
+      - ./server/modules:/nakama/data/modules
+    ports:
+      - "7349:7349"
+      - "7350:7350"
+      - "7351:7351"
+    restart: unless-stopped
+
+volumes:
+  cockroach-data:
