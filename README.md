@@ -105,6 +105,11 @@ Production-oriented multiplayer Tic-Tac-Toe built for the LILA backend assignmen
 ```text
 .
 ├── docker-compose.yml
+├── docker-compose.gcp.yml
+├── deploy/
+│   └── gcp/
+│       ├── Caddyfile
+│       └── README.md
 ├── server/
 │   └── modules/
 │       ├── backend.lua
@@ -144,7 +149,7 @@ Local endpoints:
 
 ### 2. Configure environment variables
 
-Create a `.env` file in the project root if you want to override defaults:
+Copy `.env.example` to `.env` if you want to override defaults:
 
 ```env
 REACT_APP_NAKAMA_HOST=127.0.0.1
@@ -290,34 +295,163 @@ This keeps public discovery clean while allowing private joins and quick-match-c
 
 ### Current repo state
 
-This repository includes a complete local deployment using Docker Compose. It does not yet include a live cloud deployment URL or a public Nakama endpoint.
+This repository includes:
 
-### Recommended cloud deployment process
+- a complete local Docker Compose stack
+- a GCP-oriented production Docker Compose stack in [`docker-compose.gcp.yml`](./docker-compose.gcp.yml)
+- a Caddy HTTPS reverse-proxy config for a public Nakama hostname in [`deploy/gcp/Caddyfile`](./deploy/gcp/Caddyfile)
+- frontend env examples for Vercel in [`.env.example`](./.env.example)
+- backend env examples for GCP in [`.env.gcp.example`](./.env.gcp.example)
 
-#### Nakama
+The repo still does not contain a live public URL by itself; you still need to deploy the frontend and VM in your own accounts.
 
-1. Provision a database supported by Nakama, such as CockroachDB or PostgreSQL.
-2. Deploy Nakama 3.x with:
-   - the same Lua modules from `server/modules`
-   - a secure `server_key`
-   - a secure `runtime.http_key`
-   - TLS enabled
-3. Expose only the required ports publicly.
-4. Keep the Nakama Console private.
+### Provider choice for this project
 
-#### Frontend
+- Frontend: Vercel
+- Backend: GCP Compute Engine VM running Docker Compose
+- HTTPS/TLS for Nakama: Caddy on the VM
 
-1. Run:
+### Why a public hostname is required
 
-```bash
-npm run build
+Because the frontend will be served over `https://` on Vercel, the browser should talk to Nakama over `https://` / `wss://` as well. That means the Nakama VM needs a real public hostname such as:
+
+- `nakama.your-domain.com`
+- or a free DNS hostname you control
+
+The provided GCP stack uses Caddy so the public Nakama hostname can terminate TLS automatically.
+
+### Vercel frontend deployment
+
+1. Push the repo to GitHub.
+2. In Vercel, import the GitHub repository.
+3. Let Vercel build the project as a React app.
+4. Set these environment variables in the Vercel project:
+
+```env
+REACT_APP_NAKAMA_HOST=nakama.your-domain.com
+REACT_APP_NAKAMA_PORT=443
+REACT_APP_NAKAMA_KEY=your-server-key
+REACT_APP_NAKAMA_HTTP_KEY=your-http-key
+REACT_APP_NAKAMA_USE_SSL=true
 ```
 
-2. Deploy the generated frontend to a static host such as:
-   - Vercel
-   - Netlify
-   - S3 + CloudFront
-3. Set the frontend `REACT_APP_*` values to your public Nakama host.
+5. Deploy.
+
+Build settings:
+
+- Build command: `npm run build`
+- Output directory: `build`
+
+### GCP Nakama deployment
+
+#### 1. Create the VM
+
+Use a Compute Engine VM with a small always-on machine type suitable for a demo or assignment, for example `e2-small` or better.
+
+Suggested OS:
+
+- Ubuntu LTS
+
+#### 2. Reserve a static external IP
+
+Reserve one static external IP and attach it to the VM so your backend hostname does not change after restarts.
+
+#### 3. Point DNS to the VM
+
+Create an `A` record for a hostname such as:
+
+- `nakama.your-domain.com`
+
+Point it to the VM static IP.
+
+#### 4. Open firewall rules
+
+Allow inbound traffic to:
+
+- `80`
+- `443`
+
+Do not expose these publicly:
+
+- `7351` Nakama Console
+- `7349` gRPC admin port
+- `26257` Cockroach SQL
+- `8080` Cockroach admin UI
+
+#### 5. Install Docker and Docker Compose on the VM
+
+Install Docker Engine and Docker Compose on the Compute Engine VM.
+
+#### 6. Upload or clone the repository onto the VM
+
+Place the full project on the VM so the compose file can mount:
+
+- `./server/modules`
+- `./deploy/gcp/Caddyfile`
+
+#### 7. Create the backend env file
+
+From the repo root:
+
+```bash
+cp .env.gcp.example .env.gcp
+```
+
+Update:
+
+- `NAKAMA_DOMAIN`
+- `NAKAMA_SERVER_KEY`
+- `NAKAMA_HTTP_KEY`
+- `NAKAMA_CONSOLE_USERNAME`
+- `NAKAMA_CONSOLE_PASSWORD`
+
+#### 8. Start the production backend stack
+
+From the repo root:
+
+```bash
+docker compose --env-file .env.gcp -f docker-compose.gcp.yml up -d
+```
+
+This stack will:
+
+- start CockroachDB
+- run Nakama migrations
+- start Nakama with your Lua modules
+- expose Nakama publicly through Caddy at `https://NAKAMA_DOMAIN`
+
+#### 9. Verify the backend endpoint
+
+After DNS has propagated and Caddy has issued TLS certificates, your public Nakama endpoint should be:
+
+- `https://nakama.your-domain.com`
+
+That same hostname should be used by the Vercel frontend.
+
+#### 10. Access the Nakama Console privately
+
+Use SSH tunneling instead of public exposure:
+
+```bash
+gcloud compute ssh YOUR_INSTANCE_NAME --zone YOUR_ZONE -- -L 7351:localhost:7351
+```
+
+Then open:
+
+- `http://localhost:7351`
+
+Additional GCP notes are in [`deploy/gcp/README.md`](./deploy/gcp/README.md).
+
+### API/server configuration details for deployment
+
+- Frontend should use:
+  - `REACT_APP_NAKAMA_HOST=nakama.your-domain.com`
+  - `REACT_APP_NAKAMA_PORT=443`
+  - `REACT_APP_NAKAMA_USE_SSL=true`
+- Backend should use strong values for:
+  - `NAKAMA_SERVER_KEY`
+  - `NAKAMA_HTTP_KEY`
+- GCP compose keeps the database, console, and admin interfaces bound to loopback only.
 
 ## Known Status Against Assignment Deliverables
 
@@ -343,3 +477,5 @@ npm run build
 - `src/pages/Game.js`
 - `src/pages/Leaderboard.js`
 - `docker-compose.yml`
+- `docker-compose.gcp.yml`
+- `deploy/gcp/Caddyfile`
