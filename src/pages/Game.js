@@ -673,7 +673,7 @@ function Game() {
     Boolean(winner) ||
     (myMark && myMark !== currentMark);
   const isWaitingScreen = status === "waiting";
-  const showFriendWaitingScreen = ready && status === "waiting" && !fromQueue;
+  const showFriendWaitingScreen = status === "waiting" && !fromQueue;
   const showSearchState = fromQueue && status === "waiting" && playerCount < 2;
   const showWaitingRoomState = ready && status === "waiting" && !showSearchState;
   const showResultModal = ready && status === "finished" && winner !== null;
@@ -738,7 +738,9 @@ function Game() {
 
           <div className="empty-state waiting-empty">
             <p className="muted">
-              Waiting for your friend to join this room. Share the room ID above.
+              {ready
+                ? "Waiting for your friend to join this room. Share the room ID above."
+                : "Joining match..."}
             </p>
           </div>
 
