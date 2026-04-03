@@ -166,29 +166,27 @@ async function rpcHttpKeyWithFallback(id, payload) {
   throw lastError || new Error("RPC authentication failed");
 }
 
-async function emailAlreadyRegistered(email, password) {
+async function checkSignupAvailability(email, username) {
+  let response;
   try {
-    await client.authenticateEmail(email, password, false);
-    return true;
+    response = await rpcHttpKeyWithFallback("check_signup_availability", {
+      email,
+      username,
+    });
   } catch (e) {
     const reason = await describeFetchError(e);
-    const lowered = reason.toLowerCase();
-    if (
-      lowered.includes("account_not_found") ||
-      lowered.includes("not found") ||
-      lowered.includes("no account found")
-    ) {
-      return false;
-    }
-    if (
-      lowered.includes("invalid") ||
-      lowered.includes("password") ||
-      lowered.includes("credentials")
-    ) {
-      return true;
-    }
-    throw new Error(`Sign up failed: could not verify existing account (${reason})`);
+    throw new Error(`Sign up failed: could not verify account availability (${reason})`);
   }
+
+  const payload = parseRpcPayload(response?.payload);
+  if (!payload || payload.error) {
+    throw new Error("Sign up failed: invalid signup availability response.");
+  }
+
+  return {
+    emailExists: Boolean(payload.email_exists),
+    usernameExists: Boolean(payload.username_exists),
+  };
 }
 
 function saveSessionToStorage(s) {
@@ -320,12 +318,24 @@ export async function signUpWithEmail(email, password, username) {
     throw new Error("Email, username, and password are required.");
   }
 
-  const exists = await emailAlreadyRegistered(normalizedEmail, password);
-  if (exists) {
+  const availability = await checkSignupAvailability(
+    normalizedEmail,
+    normalizedUsername
+  );
+
+  if (availability.emailExists) {
     throw authError(
       "An account with this email already exists. Please sign in.",
       "email_exists",
       { identifier: normalizedEmail }
+    );
+  }
+
+  if (availability.usernameExists) {
+    throw authError(
+      "That username is already taken. Please choose another.",
+      "username_exists",
+      { identifier: normalizedUsername }
     );
   }
 
